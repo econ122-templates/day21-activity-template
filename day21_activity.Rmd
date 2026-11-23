@@ -1,0 +1,211 @@
+---
+title: "Day 21: PCA — In-Class Activity"
+subtitle: "Where in the world should you live?"
+author: "Econ 122"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r packages, include=FALSE, eval=TRUE}
+mypacks <- c("ggplot2","dplyr","readr")
+packs <- installed.packages()
+install.me <- mypacks[!(mypacks %in% packs[,"Package"])]
+if (length(install.me) >= 1) install.packages(install.me, repos = "http://cran.us.r-project.org")
+lapply(mypacks, library, character.only=TRUE)
+```
+
+## Introduction
+
+You're choosing a city to start your career in. A cost-of-living website
+scores 150 cities around the world on six things. Six scores per city is
+too many to compare at once: PCA turns them into a few, and draws the
+cities on a map of two numbers. By the end, you'll pick your city and
+decide whether the map helped.
+
+| Column | Meaning | Better when |
+|---|---|---|
+| `purchasing` | what a local salary buys (purchasing power) | higher |
+| `health` | quality of health care | higher |
+| `cost` | prices of everyday goods (New York = 100) | lower |
+| `pollution` | air and water pollution | lower |
+| `safety` | how safe residents feel | higher |
+| `climate` | how pleasant the weather is | higher |
+
+The data have two more scores, `property` (home prices ÷ incomes) and
+`commute` (time spent commuting). We leave them out until Part 3.
+
+**Estimated time: 20 minutes.** The goal for today is the first look at
+the data and **Parts 1–3**. If you finish them, keep going with the
+**Bonus** section at the end. If you don't reach the Bonus, that's
+completely fine.
+
+Each task ends with a question in *italics*. Write a sentence or two for each.
+
+```{r load}
+cities <- read_csv("https://raw.githubusercontent.com/mgelman/data/master/livable_cities.csv")
+
+# Short column names
+cities <- cities %>%
+  rename(city = City, country = Country, quality = `Quality of Life Index`,
+         purchasing = `Purchasing Power Index`, safety = `Safety Index`,
+         health = `Health Care Index`, cost = `Cost of Living Index`,
+         property = `Property Price to Income Ratio`,
+         commute = `Traffic Commute Time Index`, pollution = `Pollution Index`,
+         climate = `Climate Index`)
+
+# The six scores PCA gets to see
+X <- cities %>% select(purchasing, health, cost, pollution, safety, climate)
+```
+
+### A first look at the data (2 minutes)
+
+```{r look}
+round(cor(X), 2)      # correlation of every pair of columns
+```
+
+*Find the two most strongly correlated columns. Do these six columns go
+together as much as the colleges' did on the slides (every pair between
+0.39 and 0.67), or less?*
+
+---
+
+## Part 1: The Components (7 minutes)
+
+Remove the `#`s. The middle lines flip the signs (see "Signs are
+arbitrary" on the slides) so that a high PC1 means high purchasing power
+and a high PC2 means safe.
+
+```{r task1}
+# pca <- prcomp(X, scale = TRUE)
+#
+# s1 <- sign(pca$rotation["purchasing", 1])     # +1 or -1
+# s2 <- sign(pca$rotation["safety", 2])
+# pca$rotation[, 1] <- s1 * pca$rotation[, 1];  pca$x[, 1] <- s1 * pca$x[, 1]
+# pca$rotation[, 2] <- s2 * pca$rotation[, 2];  pca$x[, 2] <- s2 * pca$x[, 2]
+#
+# summary(pca)$importance[2:3, ]      # proportion of variance explained, and cumulative
+# round(pca$rotation[, 1:2], 2)       # loadings on PC1 and PC2
+```
+
+*How much of the variation does PC1 keep, and PC1 and PC2 together? How
+many components do you need to keep 80%?*
+
+*Which columns have the biggest PC1 loadings, and with which signs? So what
+kind of city has a high PC1 score?*
+
+*PC2 is a trade-off, like "the mix" on the slides. Which two columns does it
+use? What does a city gain, and what does it give up, as PC2 goes up?*
+
+---
+
+## Part 2: The Map (7 minutes)
+
+Plot every city at its PC1 and PC2 scores and label a few well-known ones.
+Remove the `#`s.
+
+```{r task2, fig.height=5}
+# cities <- cities %>%
+#   mutate(PC1 = pca$x[, 1], PC2 = pca$x[, 2])
+#
+# show <- c("Zurich", "Tokyo", "Singapore", "London", "New York", "San Francisco",
+#           "Los Angeles", "Dubai", "Shanghai", "Kolkata", "Lisbon", "Johannesburg")
+#
+# ggplot(cities, aes(PC1, PC2)) +
+#   geom_point(alpha = 0.4) +
+#   geom_text(data = filter(cities, city %in% show), aes(label = city),
+#             color = "darkorange3", size = 3.5, vjust = -0.7) +
+#   labs(x = "PC1", y = "PC2")
+#
+# cities %>% arrange(desc(PC1)) %>% select(city, country, PC1, PC2) %>% head(5)   # highest PC1
+# cities %>% arrange(PC2) %>% select(city, country, PC1, PC2) %>% head(5)         # lowest PC2
+```
+
+*Using your answers to Part 1, describe the cities in each corner of the
+map. Where are San Francisco and Los Angeles, and why are they so far down
+on PC2? Which corner would you want to live in, given what you care about?*
+
+---
+
+## Part 3: Pick Your City (4 minutes)
+
+Pick a city from your corner of the map: a labeled one, or one from the
+tables above. Fill in its name, and remove the `#`s. The output shows
+all eight of its scores, including `property` and `commute`, which PCA
+didn't see, next to the median city.
+
+```{r task3}
+# my_city <- "___"
+#
+# cities %>% filter(city == my_city) %>% select(city, purchasing:climate, PC1, PC2)
+# cities %>% summarise(across(purchasing:climate, median))     # the median city
+```
+
+*Which city did you pick, and why? Do its original scores hold any
+surprises the map hid? Do `property` and `commute` change your mind? Did
+the two components help you choose, or would you rather have compared the
+six scores directly?*
+
+---
+
+## Bonus (optional)
+
+Work on these if you finish the main questions.
+
+### Bonus 1: Add two columns back
+
+Run PCA again on all eight scores, including `property` and `commute`.
+
+```{r bonus1}
+# X8 <- cities %>% select(purchasing:climate)     # all eight scores
+# pca8 <- prcomp(X8, scale = TRUE)
+#
+# summary(pca8)$importance[2, 1:3]    # proportion of variance explained
+# round(pca8$rotation[, 1:2], 2)      # loadings on PC1 and PC2
+```
+
+*How much does PC1 keep now, compared with Part 1? Do `property` and
+`commute` load mostly on one component, or on both? Is PC2 still easy to
+name? Why can adding columns change the components?*
+
+### Bonus 2: The website's own index
+
+The data also have `quality`, the website's "Quality of Life Index", which
+it computes as a weighted sum of the scores (just like a component). Plot
+`quality` against `PC1` and compute their correlation.
+
+```{r bonus2}
+# Your code here
+
+```
+
+*How close is the website's index to PC1? Why might a weighted sum chosen
+by PCA end up so close to one chosen by people?*
+
+### Bonus 3: Forget to standardize
+
+Run `prcomp(X)` (no `scale`) and look at the PC1 loadings and the
+proportion of variance explained.
+
+```{r bonus3}
+# Your code here
+
+```
+
+*Which column takes over PC1, and why? (Hint: compare the SDs of the
+columns.)*
+
+### Bonus 4: City types
+
+Run k-means with K = 4 on the first three PC scores (`pca$x[, 1:3]`; use
+`set.seed(21)` and `nstart = 20`), color the map by cluster, and look at a
+few cities in each cluster.
+
+```{r bonus4}
+# Your code here
+
+```
+
+*Give each cluster a name. Which cluster would you want to live in?*
